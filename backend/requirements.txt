@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+prometheus-api-client
+kubernetes
+sqlalchemy
+psycopg2-binary
