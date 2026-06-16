@@ -22,7 +22,10 @@ class KubernetesService:
 
         container = deployment.spec.template.spec.containers[0]
 
+        replicas = deployment.spec.replicas
+
         return {
+
             "cpu_request":
                 container.resources.requests.get(
                     "cpu"
@@ -31,5 +34,8 @@ class KubernetesService:
             "memory_request":
                 container.resources.requests.get(
                     "memory"
-                )
+                ),
+
+            "replicas":
+                replicas
         }

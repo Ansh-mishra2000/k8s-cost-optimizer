@@ -10,13 +10,19 @@ class PrometheusService:
             disable_ssl=True
         )
 
-    def get_cpu_usage(self):
+    def get_cpu_usage(
+        self,
+        deployment_name
+    ):
 
-        query = '''
-        rate(
-            container_cpu_usage_seconds_total{
-                pod=~"stress-app.*"
-            }[5m]
+        query = f'''
+        sum(
+            rate(
+                container_cpu_usage_seconds_total{{
+                    pod=~"{deployment_name}.*",
+                    image!=""
+                }}[5m]
+            )
         )
         '''
 
@@ -26,13 +32,17 @@ class PrometheusService:
 
         return result
 
-    def get_memory_usage(self):
+    def get_memory_usage(
+        self,
+        deployment_name
+    ):
 
-        query = '''
+        query = f'''
         sum(
-            container_memory_working_set_bytes{
-            pod=~"stress-app.*"
-            }
+            container_memory_working_set_bytes{{
+                pod=~"{deployment_name}.*",
+                image!=""
+            }}
         ) / 1024 / 1024
         '''
 

@@ -1,34 +1,70 @@
 from services.kubernetes_service import KubernetesService
 from services.prometheus_service import PrometheusService
 from services.analyzer import Analyzer
+from kubernetes.client.exceptions import ApiException
 
 
 class RecommendationService:
 
-    def get_recommendation(self):
+    def get_recommendation(
+        self,
+        deployment_name
+    ):
 
         k8s = KubernetesService()
         prom = PrometheusService()
 
-        resources = k8s.get_deployment_resources(
-            "stress-app"
-        )
+        try:
+
+            resources = k8s.get_deployment_resources(
+                deployment_name
+            )
+
+        except ApiException:
+
+            return {
+
+                "error":
+
+                f"Deployment "
+                f"'{deployment_name}' "
+                f"not found."
+            }
 
         # =====================
         # CPU Metrics
         # =====================
 
-        cpu_metrics = prom.get_cpu_usage()
+        try:
 
-        actual_cpu = 0
+            cpu_metrics = prom.get_cpu_usage(
+                deployment_name
+            )
 
-        if cpu_metrics:
+        except Exception:
 
-            for metric in cpu_metrics:
+            return {
 
-                actual_cpu += float(
-                    metric["value"][1]
-                )
+                "error":
+
+                "Unable to connect to Prometheus."
+            }
+
+        if not cpu_metrics:
+
+            return {
+
+                "error":
+
+                f"No CPU metrics found "
+                f"for deployment "
+                f"'{deployment_name}'."
+            }
+
+        actual_cpu = float(
+
+            cpu_metrics[0]["value"][1]
+        )
 
         requested_cpu = resources[
             "cpu_request"
@@ -54,6 +90,11 @@ class RecommendationService:
                     requested_cpu
                 )
 
+        # Multiply by replicas
+        requested_cpu *= resources[
+            "replicas"
+        ]
+
         cpu_waste = Analyzer.calculate_cpu_waste(
             requested_cpu,
             actual_cpu
@@ -64,19 +105,51 @@ class RecommendationService:
             actual_cpu
         )
 
+        # CPU Recommendation Reason
+        cpu_reason = (
+
+            f"Observed CPU usage was "
+            f"{round(actual_cpu, 2)} cores "
+            f"against a requested allocation of "
+            f"{round(requested_cpu, 2)} cores. "
+            f"The recommendation adds a 20% "
+            f"safety buffer to the observed usage."
+        )
+
         # =====================
         # Memory Metrics
         # =====================
 
-        memory_metrics = prom.get_memory_usage()
+        try:
 
-        actual_memory = 0
-
-        if memory_metrics:
-
-            actual_memory = float(
-                memory_metrics[0]["value"][1]
+            memory_metrics = prom.get_memory_usage(
+                deployment_name
             )
+
+        except Exception:
+
+            return {
+
+                "error":
+
+                "Unable to connect to Prometheus."
+            }
+
+        if not memory_metrics:
+
+            return {
+
+                "error":
+
+                f"No memory metrics found "
+                f"for deployment "
+                f"'{deployment_name}'."
+            }
+
+        actual_memory = float(
+
+            memory_metrics[0]["value"][1]
+        )
 
         requested_memory = resources[
             "memory_request"
@@ -94,6 +167,11 @@ class RecommendationService:
                     )
                 )
 
+        # Multiply by replicas
+        requested_memory *= resources[
+            "replicas"
+        ]
+
         memory_waste = Analyzer.calculate_memory_waste(
             requested_memory,
             actual_memory
@@ -104,9 +182,21 @@ class RecommendationService:
             actual_memory
         )
 
+        # Memory Recommendation Reason
+        memory_reason = (
+
+            f"Observed memory usage was "
+            f"{round(actual_memory, 2)} MiB "
+            f"against a requested allocation of "
+            f"{round(requested_memory, 2)} MiB. "
+            f"The recommendation enforces a "
+            f"minimum allocation of "
+            f"{Analyzer.MIN_MEMORY_MIB} MiB."
+        )
+
         return {
 
-            "deployment": "stress-app",
+            "deployment": deployment_name,
 
             # CPU Recommendations
 
@@ -124,6 +214,9 @@ class RecommendationService:
 
             "recommended_cpu": recommended_cpu,
 
+            "cpu_recommendation_reason":
+                cpu_reason,
+
             # Memory Recommendations
 
             "requested_memory_mib": round(
@@ -136,7 +229,12 @@ class RecommendationService:
                 2
             ),
 
-            "memory_waste_percent": memory_waste,
+            "memory_waste_percent":
+                memory_waste,
 
-            "recommended_memory_mib": recommended_memory
+            "recommended_memory_mib":
+                recommended_memory,
+
+            "memory_recommendation_reason":
+                memory_reason
         }
