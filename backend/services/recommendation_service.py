@@ -277,6 +277,131 @@ class RecommendationService:
             f"{Analyzer.MIN_MEMORY_MIB} MiB."
         )
 
+        # =====================
+        # Memory Cost Calculations
+        # =====================
+
+        monthly_memory_cost = (
+            CostAnalyzer.calculate_monthly_memory_cost(
+                memory_allocation_mib=requested_memory,
+                node_memory_capacity_mib=node_info[
+                    "memory_capacity_mib"
+                ],
+                node_hourly_price=hourly_price
+            )
+        )
+
+        optimized_monthly_memory_cost = (
+            CostAnalyzer.calculate_monthly_memory_cost(
+                memory_allocation_mib=recommended_memory,
+                node_memory_capacity_mib=node_info[
+                    "memory_capacity_mib"
+                ],
+                node_hourly_price=hourly_price
+            )
+        )
+
+        monthly_memory_savings = (
+            CostAnalyzer.calculate_monthly_savings(
+                current_cost=monthly_memory_cost,
+                optimized_cost=optimized_monthly_memory_cost
+            )
+        )
+
+        if monthly_memory_savings > 0:
+
+            memory_cost_reason = (
+
+                f"The deployment currently incurs "
+                f"an estimated monthly memory cost of "
+                f"${monthly_memory_cost}. "
+                f"By resizing memory allocation from "
+                f"{round(requested_memory, 2)} MiB "
+                f"to {recommended_memory} MiB, "
+                f"the projected monthly memory cost "
+                f"reduces to "
+                f"${optimized_monthly_memory_cost}, "
+                f"resulting in estimated savings of "
+                f"${monthly_memory_savings} per month."
+            )
+
+        elif monthly_memory_savings < 0:
+
+            memory_cost_reason = (
+
+                f"The deployment requires additional "
+                f"memory allocation. Increasing memory "
+                f"raises estimated monthly cost from "
+                f"${monthly_memory_cost} to "
+                f"${optimized_monthly_memory_cost}."
+            )
+
+        else:
+
+            memory_cost_reason = (
+
+                f"The current memory allocation closely "
+                f"matches the recommended allocation, "
+                f"resulting in no significant cost change."
+            )
+
+        # =====================
+        # Total Cost Calculations
+        # =====================
+
+        monthly_total_cost = (
+            CostAnalyzer.calculate_total_monthly_cost(
+                cpu_cost=monthly_cpu_cost,
+                memory_cost=monthly_memory_cost
+            )
+        )
+
+        optimized_monthly_total_cost = (
+            CostAnalyzer.calculate_total_monthly_cost(
+                cpu_cost=optimized_monthly_cpu_cost,
+                memory_cost=optimized_monthly_memory_cost
+            )
+        )
+
+        monthly_total_savings = (
+            CostAnalyzer.calculate_monthly_savings(
+                current_cost=monthly_total_cost,
+                optimized_cost=optimized_monthly_total_cost
+            )
+        )
+
+        if monthly_total_savings > 0:
+
+            total_cost_reason = (
+
+                f"Applying all optimization recommendations "
+                f"reduces total estimated monthly cost "
+                f"from ${monthly_total_cost} to "
+                f"${optimized_monthly_total_cost}, "
+                f"resulting in estimated savings of "
+                f"${monthly_total_savings} per month."
+            )
+
+        elif monthly_total_savings < 0:
+
+            total_cost_reason = (
+
+                f"The workload is currently resource "
+                f"constrained. Applying all recommendations "
+                f"increases estimated monthly cost from "
+                f"${monthly_total_cost} to "
+                f"${optimized_monthly_total_cost} "
+                f"to improve stability."
+            )
+
+        else:
+
+            total_cost_reason = (
+
+                f"The current allocation already matches "
+                f"the optimizer recommendation, resulting "
+                f"in no significant cost change."
+            )
         return {
 
             "deployment": deployment_name,
@@ -297,6 +422,34 @@ class RecommendationService:
 
             "cpu_recommendation_reason":
                 cpu_reason,
+
+            # Memory Cost Optimization
+
+            "monthly_memory_cost_usd":
+                monthly_memory_cost,
+
+            "optimized_monthly_memory_cost_usd":
+                optimized_monthly_memory_cost,
+
+            "monthly_memory_savings_usd":
+                monthly_memory_savings,
+
+            "memory_cost_recommendation_reason":
+                memory_cost_reason,
+
+            # Total Cost Optimization
+
+            "monthly_total_cost_usd":
+                monthly_total_cost,
+
+            "optimized_monthly_total_cost_usd":
+                optimized_monthly_total_cost,
+
+            "monthly_total_savings_usd":
+                monthly_total_savings,
+
+            "total_cost_recommendation_reason":
+                total_cost_reason,
 
             # CPU Cost Optimization
 

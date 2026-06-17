@@ -84,6 +84,19 @@ class KubernetesService:
             "cpu"
         ]
 
+        memory_capacity = node.status.capacity[
+            "memory"
+        ]
+
+        memory_capacity_mib = (
+            int(
+                memory_capacity.replace(
+                    "Ki",
+                    ""
+                )
+            ) / 1024
+        )
+
         provider_id = node.spec.provider_id
 
         instance_id = provider_id.split(
@@ -97,6 +110,12 @@ class KubernetesService:
 
             "cpu_capacity":
                 float(cpu_capacity),
+
+            "memory_capacity_mib":
+                round(
+                    memory_capacity_mib,
+                    2
+                ),
 
             "instance_id":
                 instance_id
