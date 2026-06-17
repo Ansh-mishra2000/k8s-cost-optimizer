@@ -2,6 +2,8 @@ from services.kubernetes_service import KubernetesService
 from services.prometheus_service import PrometheusService
 from services.analyzer import Analyzer
 from kubernetes.client.exceptions import ApiException
+from services.aws_service import AWSService
+from services.cost_analyzer import CostAnalyzer
 
 
 class RecommendationService:
@@ -13,6 +15,7 @@ class RecommendationService:
 
         k8s = KubernetesService()
         prom = PrometheusService()
+        aws = AWSService()
 
         try:
 
@@ -62,7 +65,6 @@ class RecommendationService:
             }
 
         actual_cpu = float(
-
             cpu_metrics[0]["value"][1]
         )
 
@@ -70,7 +72,6 @@ class RecommendationService:
             "cpu_request"
         ]
 
-        # Convert Kubernetes CPU format
         if isinstance(requested_cpu, str):
 
             if requested_cpu.endswith("m"):
@@ -90,7 +91,6 @@ class RecommendationService:
                     requested_cpu
                 )
 
-        # Multiply by replicas
         requested_cpu *= resources[
             "replicas"
         ]
@@ -105,7 +105,6 @@ class RecommendationService:
             actual_cpu
         )
 
-        # CPU Recommendation Reason
         cpu_reason = (
 
             f"Observed CPU usage was "
@@ -115,6 +114,94 @@ class RecommendationService:
             f"The recommendation adds a 20% "
             f"safety buffer to the observed usage."
         )
+
+        # =====================
+        # CPU Cost Calculations
+        # =====================
+
+        node_info = k8s.get_node_capacity(
+            deployment_name
+        )
+
+        instance_type = aws.get_instance_type(
+            node_info["instance_id"]
+        )
+
+        hourly_price = aws.get_hourly_price(
+            instance_type
+        )
+
+        monthly_cpu_cost = (
+            CostAnalyzer.calculate_monthly_cpu_cost(
+                cpu_allocation=requested_cpu,
+                node_cpu_capacity=node_info[
+                    "cpu_capacity"
+                ],
+                node_hourly_price=hourly_price
+            )
+        )
+
+        optimized_monthly_cpu_cost = (
+            CostAnalyzer.calculate_monthly_cpu_cost(
+                cpu_allocation=recommended_cpu,
+                node_cpu_capacity=node_info[
+                    "cpu_capacity"
+                ],
+                node_hourly_price=hourly_price
+            )
+        )
+
+        monthly_cpu_savings = (
+            CostAnalyzer.calculate_monthly_savings(
+                current_cost=monthly_cpu_cost,
+                optimized_cost=optimized_monthly_cpu_cost
+            )
+        )
+
+        if monthly_cpu_savings > 0:
+
+            cpu_cost_reason = (
+
+                f"The deployment currently incurs "
+                f"an estimated monthly CPU cost of "
+                f"${monthly_cpu_cost}. "
+                f"By resizing CPU allocation from "
+                f"{round(requested_cpu, 2)} cores "
+                f"to {recommended_cpu} cores, "
+                f"the projected monthly CPU cost "
+                f"reduces to "
+                f"${optimized_monthly_cpu_cost}, "
+                f"resulting in estimated savings "
+                f"of ${monthly_cpu_savings} "
+                f"per month."
+            )
+
+        elif monthly_cpu_savings < 0:
+
+            cpu_cost_reason = (
+
+                f"The deployment is currently "
+                f"under-provisioned. Increasing CPU "
+                f"allocation from "
+                f"{round(requested_cpu, 2)} cores "
+                f"to {recommended_cpu} cores "
+                f"increases the estimated monthly "
+                f"CPU cost from "
+                f"${monthly_cpu_cost} to "
+                f"${optimized_monthly_cpu_cost}. "
+                f"This additional cost helps "
+                f"maintain application stability."
+            )
+
+        else:
+
+            cpu_cost_reason = (
+
+                f"The current CPU allocation "
+                f"closely matches the recommended "
+                f"allocation, resulting in no "
+                f"significant cost change."
+            )
 
         # =====================
         # Memory Metrics
@@ -147,7 +234,6 @@ class RecommendationService:
             }
 
         actual_memory = float(
-
             memory_metrics[0]["value"][1]
         )
 
@@ -155,7 +241,6 @@ class RecommendationService:
             "memory_request"
         ]
 
-        # Convert Kubernetes Memory format
         if isinstance(requested_memory, str):
 
             if requested_memory.endswith("Mi"):
@@ -167,7 +252,6 @@ class RecommendationService:
                     )
                 )
 
-        # Multiply by replicas
         requested_memory *= resources[
             "replicas"
         ]
@@ -182,7 +266,6 @@ class RecommendationService:
             actual_memory
         )
 
-        # Memory Recommendation Reason
         memory_reason = (
 
             f"Observed memory usage was "
@@ -197,8 +280,6 @@ class RecommendationService:
         return {
 
             "deployment": deployment_name,
-
-            # CPU Recommendations
 
             "requested_cpu": round(
                 requested_cpu,
@@ -216,6 +297,26 @@ class RecommendationService:
 
             "cpu_recommendation_reason":
                 cpu_reason,
+
+            # CPU Cost Optimization
+
+            "instance_type":
+                instance_type,
+
+            "node_hourly_price_usd":
+                hourly_price,
+
+            "monthly_cpu_cost_usd":
+                monthly_cpu_cost,
+
+            "optimized_monthly_cpu_cost_usd":
+                optimized_monthly_cpu_cost,
+
+            "monthly_cpu_savings_usd":
+                monthly_cpu_savings,
+
+            "cpu_cost_recommendation_reason":
+                cpu_cost_reason,
 
             # Memory Recommendations
 
