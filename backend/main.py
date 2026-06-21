@@ -93,9 +93,26 @@ def deployments():
 
     return k8s.get_all_deployments()
 
-@app.get("/deployments")
-def deployments():
 
-    k8s = KubernetesService()
+@app.get(
+    "/recommendation/{namespace}/{deployment_name}"
+)
+def recommendation_by_namespace(
+    namespace: str,
+    deployment_name: str
+):
 
-    return k8s.get_all_deployments()
+    service = RecommendationService()
+
+    result = service.get_recommendation(
+        deployment_name,
+        namespace
+    )
+
+    if "error" not in result:
+
+        MetricsService.update_metrics(
+            result
+        )
+
+    return result

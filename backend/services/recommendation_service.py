@@ -10,7 +10,8 @@ class RecommendationService:
 
     def get_recommendation(
         self,
-        deployment_name
+        deployment_name,
+        namespace="default"
     ):
 
         k8s = KubernetesService()
@@ -20,7 +21,8 @@ class RecommendationService:
         try:
 
             resources = k8s.get_deployment_resources(
-                deployment_name
+                deployment_name,
+                namespace
             )
 
         except ApiException as e:
@@ -116,7 +118,8 @@ class RecommendationService:
         # =====================
 
         node_info = k8s.get_node_capacity(
-            deployment_name
+            deployment_name,
+            namespace
         )
 
         instance_type = aws.get_instance_type(
