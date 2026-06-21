@@ -5,7 +5,23 @@ class KubernetesService:
 
     def __init__(self):
 
-        config.load_kube_config()
+        try:
+
+            # Running locally
+            config.load_kube_config()
+
+            print(
+                "Loaded local kubeconfig"
+            )
+
+        except Exception:
+
+            # Running inside Kubernetes
+            config.load_incluster_config()
+
+            print(
+                "Loaded in-cluster config"
+            )
 
         self.apps_v1 = client.AppsV1Api()
 
@@ -120,3 +136,21 @@ class KubernetesService:
             "instance_id":
                 instance_id
         }
+    def get_all_deployments(
+        self,
+        namespace="default"
+        ):
+
+        deployments = self.apps_v1.list_namespaced_deployment(
+        namespace=namespace
+        )
+
+        deployment_names = []
+
+        for deployment in deployments.items:
+
+            deployment_names.append(
+                deployment.metadata.name
+            )
+
+        return deployment_names

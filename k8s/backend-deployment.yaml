@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: k8s-cost-optimizer
+  namespace: optimizer
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: k8s-cost-optimizer
+
+  template:
+
+    metadata:
+      labels:
+        app: k8s-cost-optimizer
+
+    spec:
+
+      serviceAccountName: k8s-cost-optimizer-sa
+
+      containers:
+
+      - name: backend
+
+        image: 464716974838.dkr.ecr.ap-south-1.amazonaws.com/k8s-cost-optimizer:latest
+
+        imagePullPolicy: Always
+
+        ports:
+        - containerPort: 9000

@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-cost-optimizer-sa
+  namespace: optimizer
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-cost-optimizer-role
+
+rules:
+
+- apiGroups: ["apps"]
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+
+- apiGroups: [""]
+  resources:
+  - pods
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-cost-optimizer-binding
+
+subjects:
+- kind: ServiceAccount
+  name: k8s-cost-optimizer-sa
+  namespace: optimizer
+
+roleRef:
+  kind: ClusterRole
+  name: k8s-cost-optimizer-role
+  apiGroup: rbac.authorization.k8s.io

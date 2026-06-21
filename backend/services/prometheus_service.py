@@ -6,7 +6,7 @@ class PrometheusService:
     def __init__(self):
 
         self.prom = PrometheusConnect(
-            url="http://localhost:9090",
+            url="http://monitoring-kube-prometheus-prometheus:9090",
             disable_ssl=True
         )
 

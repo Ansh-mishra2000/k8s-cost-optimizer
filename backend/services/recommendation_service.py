@@ -23,16 +23,12 @@ class RecommendationService:
                 deployment_name
             )
 
-        except ApiException:
+        except ApiException as e:
 
-            return {
+                return {
 
-                "error":
-
-                f"Deployment "
-                f"'{deployment_name}' "
-                f"not found."
-            }
+                    "error": str(e)
+                }
 
         # =====================
         # CPU Metrics
