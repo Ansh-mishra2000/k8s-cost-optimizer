@@ -26,7 +26,7 @@ spec:
 
       - name: backend
 
-        image: 464716974838.dkr.ecr.ap-south-1.amazonaws.com/k8s-cost-optimizer:latest
+        image: 085351677198.dkr.ecr.ap-south-1.amazonaws.com/k8s-cost-optimizer
 
         imagePullPolicy: Always
 

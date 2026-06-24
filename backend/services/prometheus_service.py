@@ -51,3 +51,50 @@ class PrometheusService:
         )
 
         return result
+    
+
+    def get_avg_cpu_24h(
+    self,
+    deployment_name
+    ):
+
+        query = f'''
+        avg(
+            avg_over_time(
+                rate(
+                    container_cpu_usage_seconds_total{{
+                        pod=~"{deployment_name}.*"
+                    }}[5m]
+                )[24h:]
+            )
+        )
+        '''
+
+        result = self.prom.custom_query(
+            query=query
+        )
+
+        return result
+    
+    def get_peak_cpu_24h(
+    self,
+    deployment_name
+    ):
+
+        query = f'''
+        max(
+            max_over_time(
+                rate(
+                    container_cpu_usage_seconds_total{{
+                        pod=~"{deployment_name}.*"
+                    }}[5m]
+                )[24h:]
+            )
+        )
+        '''
+
+        result = self.prom.custom_query(
+            query=query
+        )
+
+        return result

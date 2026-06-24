@@ -66,6 +66,36 @@ class RecommendationService:
             cpu_metrics[0]["value"][1]
         )
 
+        avg_cpu_metrics = prom.get_avg_cpu_24h(
+                deployment_name
+            )
+
+        peak_cpu_metrics = prom.get_peak_cpu_24h(
+                deployment_name
+            )
+
+        avg_cpu_24h = 0
+
+        peak_cpu_24h = 0
+
+        if avg_cpu_metrics:
+
+            avg_cpu_24h = round(
+                float(
+                    avg_cpu_metrics[0]["value"][1]
+                ),
+                4
+            )
+
+        if peak_cpu_metrics:
+
+            peak_cpu_24h = round(
+                float(
+                    peak_cpu_metrics[0]["value"][1]
+                ),
+                4
+            )
+
         requested_cpu = resources[
             "cpu_request"
         ]
@@ -414,6 +444,11 @@ class RecommendationService:
                 actual_cpu,
                 2
             ),
+            "avg_cpu_24h":
+                avg_cpu_24h,
+
+            "peak_cpu_24h":
+                peak_cpu_24h,
 
             "cpu_waste_percent": cpu_waste,
 

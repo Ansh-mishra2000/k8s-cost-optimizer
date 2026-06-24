@@ -90,7 +90,46 @@ class KubernetesService:
                 f"'{deployment_name}'."
             )
 
-        node_name = pods.items[0].spec.node_name
+        print("PODS FOUND =", len(pods.items))
+
+        running_pod = None
+
+        print("***** NEW RUNNING POD LOGIC *****")
+
+        for pod in pods.items:
+
+            print(
+                "POD:",
+                pod.metadata.name,
+                "| STATUS:",
+                pod.status.phase,
+                "| NODE:",
+                pod.spec.node_name
+            )
+
+            if (
+                pod.status.phase == "Running"
+                and pod.spec.node_name is not None
+            ):
+
+                running_pod = pod
+
+                break
+
+        if running_pod is None:
+
+            raise Exception(
+                f"No running pod found for deployment "
+                f"'{deployment_name}'."
+            )
+
+        pod_name = running_pod.metadata.name
+
+        node_name = running_pod.spec.node_name
+
+        print("SELECTED POD =", pod_name)
+
+        print("NODE NAME =", node_name)
 
         node = self.core_v1.read_node(
             name=node_name
