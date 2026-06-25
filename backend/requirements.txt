@@ -6,3 +6,5 @@ kubernetes
 sqlalchemy
 psycopg2-binary
 boto3
+sqlalchemy
+psycopg2-binary

@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi import Response
 from services.kubernetes_service import KubernetesService
+from database.db import engine
+from database.models import Base
+
 
 from prometheus_client import (
     generate_latest,
@@ -24,6 +27,8 @@ from services.metrics_service import (
 )
 
 app = FastAPI()
+
+Base.metadata.create_all(bind=engine)
 
 
 @app.get("/")
@@ -69,6 +74,15 @@ def recommendation(
         deployment_name
     )
 
+    if result is None:
+
+        return {
+
+            "error":
+
+            "Recommendation service returned None."
+        }
+
     if "error" not in result:
 
         MetricsService.update_metrics(
@@ -108,6 +122,15 @@ def recommendation_by_namespace(
         deployment_name,
         namespace
     )
+
+    if result is None:
+
+        return {
+
+            "error":
+
+            "Recommendation service returned None."
+        }
 
     if "error" not in result:
 
