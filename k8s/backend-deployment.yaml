@@ -32,3 +32,10 @@ spec:
 
         ports:
         - containerPort: 9000
+
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: DATABASE_URL
