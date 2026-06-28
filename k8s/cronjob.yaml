@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: CronJob
+
+metadata:
+  name: recommendation-collector
+  namespace: optimizer
+
+spec:
+
+  schedule: "*/1 * * * *"
+
+  successfulJobsHistoryLimit: 3
+
+  failedJobsHistoryLimit: 3
+
+  jobTemplate:
+
+    spec:
+
+      template:
+
+        spec:
+
+          serviceAccountName: recommendation-collector-sa
+
+          restartPolicy: OnFailure
+
+          containers:
+
+          - name: recommendation-collector
+
+            image: 085351677198.dkr.ecr.ap-south-1.amazonaws.com/recommendation-collector:latest
+
+            imagePullPolicy: Always
+
+            env:
+
+            - name: BACKEND_URL
+
+              value: "http://k8s-cost-optimizer-service:9000"
