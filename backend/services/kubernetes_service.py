@@ -178,18 +178,21 @@ class KubernetesService:
     def get_all_deployments(
         self,
         namespace="default"
-        ):
+    ):
 
         deployments = self.apps_v1.list_namespaced_deployment(
-        namespace=namespace
+            namespace=namespace
         )
 
-        deployment_names = []
+        deployment_list = []
 
         for deployment in deployments.items:
 
-            deployment_names.append(
-                deployment.metadata.name
+            deployment_list.append(
+                {
+                    "name": deployment.metadata.name,
+                    "namespace": deployment.metadata.namespace
+                }
             )
 
-        return deployment_names
+        return deployment_list

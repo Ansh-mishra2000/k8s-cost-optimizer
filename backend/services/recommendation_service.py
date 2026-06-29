@@ -12,7 +12,8 @@ class RecommendationService:
     def get_recommendation(
         self,
         deployment_name,
-        namespace="default"
+        namespace="default",
+        save_to_db=True
     ):
         try:
 
@@ -534,17 +535,17 @@ class RecommendationService:
                     memory_reason
 
             }
+            if save_to_db:
+                try:
+                    RecommendationRepository.save_recommendation(response)
 
-            try:
-                RecommendationRepository.save_recommendation(response)
-            except Exception as e:
-                print("DATABASE SAVE FAILED:", str(e))
+                except Exception as e:
+                    print("DATABASE SAVE FAILED:", str(e))
 
             return response
+        
+        except ApiException as e:
 
-        except Exception as e:
-            print("ERROR INSIDE get_recommendation():", str(e))
             return {
                 "error": str(e)
             }
-        

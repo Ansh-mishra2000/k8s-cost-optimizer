@@ -63,7 +63,8 @@ class PrometheusService:
             avg_over_time(
                 rate(
                     container_cpu_usage_seconds_total{{
-                        pod=~"{deployment_name}.*"
+                        pod=~"{deployment_name}.*",
+                        image!=""
                     }}[5m]
                 )[24h:]
             )
@@ -86,7 +87,8 @@ class PrometheusService:
             max_over_time(
                 rate(
                     container_cpu_usage_seconds_total{{
-                        pod=~"{deployment_name}.*"
+                        pod=~"{deployment_name}.*",
+                        image!=""
                     }}[5m]
                 )[24h:]
             )

@@ -1,9 +1,8 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import os
 
-DATABASE_URL = (
-    "postgresql://postgres:password@host.docker.internal:5432/k8s_optimizer"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)
 

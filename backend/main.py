@@ -71,7 +71,8 @@ def recommendation(
     service = RecommendationService()
 
     result = service.get_recommendation(
-        deployment_name
+        deployment_name,
+        save_to_db=False
     )
 
     if result is None:
@@ -108,6 +109,21 @@ def deployments():
     return k8s.get_all_deployments()
 
 
+@app.post("/collect/{namespace}/{deployment_name}")
+def collect(
+    namespace: str,
+    deployment_name: str
+):
+
+    service = RecommendationService()
+
+    return service.get_recommendation(
+        deployment_name,
+        namespace,
+        save_to_db=True
+    )
+
+
 @app.get(
     "/recommendation/{namespace}/{deployment_name}"
 )
@@ -120,7 +136,8 @@ def recommendation_by_namespace(
 
     result = service.get_recommendation(
         deployment_name,
-        namespace
+        namespace,
+        save_to_db=False
     )
 
     if result is None:
