@@ -9,13 +9,21 @@ spec:
 
   schedule: "*/1 * * * *"
 
-  successfulJobsHistoryLimit: 3
+  # Never start a new collector if the previous one is still running
+  concurrencyPolicy: Forbid
 
-  failedJobsHistoryLimit: 3
+  # Keep only the last 2 successful jobs
+  successfulJobsHistoryLimit: 2
+
+  # Keep only the last 2 failed jobs
+  failedJobsHistoryLimit: 2
 
   jobTemplate:
 
     spec:
+
+      # Delete finished jobs automatically after 60 seconds
+      ttlSecondsAfterFinished: 60
 
       template:
 
