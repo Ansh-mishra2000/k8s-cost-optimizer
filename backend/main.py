@@ -87,6 +87,16 @@ def deployments():
     return kubernetes_service.get_all_deployments()
 
 
+@app.get("/dashboard/deployment/{deployment_name}")
+def deployment_details(
+    deployment_name: str
+):
+
+    return dashboard_service.get_deployment_details(
+        deployment_name
+    )
+
+
 # -----------------------------
 # Collector Endpoint
 # Used by Kubernetes CronJob

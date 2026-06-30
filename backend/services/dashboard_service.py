@@ -82,3 +82,61 @@ class DashboardService:
         
         finally:
             self.db.close()
+
+    def get_deployment_details(
+        self,
+        deployment_name: str
+    ):
+
+        try:
+
+            query = text("""
+
+                SELECT *
+
+                FROM recommendations
+
+                WHERE deployment_name = :deployment_name
+
+                ORDER BY timestamp DESC
+
+                LIMIT 1;
+
+            """)
+
+            result = self.db.execute(
+
+                query,
+
+                {
+
+                    "deployment_name": deployment_name
+
+                }
+
+            ).mappings().first()
+
+            if result is None:
+
+                return {
+
+                    "error":
+                        "Deployment not found."
+
+                }
+
+            return dict(result)
+
+        except Exception as e:
+
+            raise HTTPException(
+
+                status_code=500,
+
+                detail=str(e)
+
+            )
+
+        finally:
+
+            self.db.close()
