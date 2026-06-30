@@ -1,36 +1,37 @@
-from fastapi import FastAPI
-from fastapi import Response
-from services.kubernetes_service import KubernetesService
-from database.db import engine
-from database.models import Base
-
+from fastapi import FastAPI, Response
 
 from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST
 )
 
-from services.kubernetes_service import (
-    KubernetesService
-)
+from database.db import engine
+from database.models import Base
 
-from services.prometheus_service import (
-    PrometheusService
-)
+from services.kubernetes_service import KubernetesService
+from services.prometheus_service import PrometheusService
+from services.recommendation_service import RecommendationService
+from services.dashboard_service import DashboardService
+from services.metrics_service import MetricsService
 
-from services.recommendation_service import (
-    RecommendationService
-)
-
-from services.metrics_service import (
-    MetricsService
-)
 
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
 
+# -----------------------------
+# Service Objects (Created Once)
+# -----------------------------
+kubernetes_service = KubernetesService()
+prometheus_service = PrometheusService()
+recommendation_service = RecommendationService()
+dashboard_service = DashboardService()
+
+
+# -----------------------------
+# Home
+# -----------------------------
 @app.get("/")
 def home():
 
@@ -39,60 +40,35 @@ def home():
     }
 
 
+# -----------------------------
+# Deployment Resources
+# -----------------------------
 @app.get("/deployment/{deployment_name}")
 def deployment(
     deployment_name: str
 ):
 
-    k8s = KubernetesService()
-
-    return k8s.get_deployment_resources(
+    return kubernetes_service.get_deployment_resources(
         deployment_name
     )
 
 
+# -----------------------------
+# Live CPU Usage
+# -----------------------------
 @app.get("/cpu/{deployment_name}")
 def cpu(
     deployment_name: str
 ):
 
-    prom = PrometheusService()
-
-    return prom.get_cpu_usage(
+    return prometheus_service.get_cpu_usage(
         deployment_name
     )
 
 
-@app.get("/recommendation/{deployment_name}")
-def recommendation(
-    deployment_name: str
-):
-
-    service = RecommendationService()
-
-    result = service.get_recommendation(
-        deployment_name,
-        save_to_db=False
-    )
-
-    if result is None:
-
-        return {
-
-            "error":
-
-            "Recommendation service returned None."
-        }
-
-    if "error" not in result:
-
-        MetricsService.update_metrics(
-            result
-        )
-
-    return result
-
-
+# -----------------------------
+# Prometheus Metrics Endpoint
+# -----------------------------
 @app.get("/metrics")
 def metrics():
 
@@ -101,40 +77,43 @@ def metrics():
         media_type=CONTENT_TYPE_LATEST
     )
 
-@app.get("/deployments")
+
+# -----------------------------
+# Dashboard - Deployments
+# -----------------------------
+@app.get("/dashboard/deployments")
 def deployments():
 
-    k8s = KubernetesService()
-
-    return k8s.get_all_deployments()
+    return kubernetes_service.get_all_deployments()
 
 
+# -----------------------------
+# Collector Endpoint
+# Used by Kubernetes CronJob
+# -----------------------------
 @app.post("/collect/{namespace}/{deployment_name}")
 def collect(
     namespace: str,
     deployment_name: str
 ):
 
-    service = RecommendationService()
-
-    return service.get_recommendation(
+    return recommendation_service.get_recommendation(
         deployment_name,
         namespace,
         save_to_db=True
     )
 
 
-@app.get(
-    "/recommendation/{namespace}/{deployment_name}"
-)
+# -----------------------------
+# Live Recommendation
+# -----------------------------
+@app.get("/recommendation/{namespace}/{deployment_name}")
 def recommendation_by_namespace(
     namespace: str,
     deployment_name: str
 ):
 
-    service = RecommendationService()
-
-    result = service.get_recommendation(
+    result = recommendation_service.get_recommendation(
         deployment_name,
         namespace,
         save_to_db=False
@@ -145,8 +124,8 @@ def recommendation_by_namespace(
         return {
 
             "error":
+                "Recommendation service returned None."
 
-            "Recommendation service returned None."
         }
 
     if "error" not in result:
@@ -156,3 +135,12 @@ def recommendation_by_namespace(
         )
 
     return result
+
+
+# -----------------------------
+# Dashboard Summary
+# -----------------------------
+@app.get("/dashboard/summary")
+def dashboard_summary():
+
+    return dashboard_service.get_dashboard_summary()

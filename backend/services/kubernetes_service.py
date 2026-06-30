@@ -24,7 +24,6 @@ class KubernetesService:
             )
 
         self.apps_v1 = client.AppsV1Api()
-
         self.core_v1 = client.CoreV1Api()
 
     def get_deployment_resources(
@@ -56,6 +55,7 @@ class KubernetesService:
 
             "replicas":
                 replicas
+
         }
 
     def get_node_capacity(
@@ -86,8 +86,7 @@ class KubernetesService:
         if not pods.items:
 
             raise Exception(
-                f"No pods found for deployment "
-                f"'{deployment_name}'."
+                f"No pods found for deployment '{deployment_name}'."
             )
 
         print("PODS FOUND =", len(pods.items))
@@ -113,35 +112,27 @@ class KubernetesService:
             ):
 
                 running_pod = pod
-
                 break
 
         if running_pod is None:
 
             raise Exception(
-                f"No running pod found for deployment "
-                f"'{deployment_name}'."
+                f"No running pod found for deployment '{deployment_name}'."
             )
 
         pod_name = running_pod.metadata.name
-
         node_name = running_pod.spec.node_name
 
         print("SELECTED POD =", pod_name)
-
         print("NODE NAME =", node_name)
 
         node = self.core_v1.read_node(
             name=node_name
         )
 
-        cpu_capacity = node.status.capacity[
-            "cpu"
-        ]
+        cpu_capacity = node.status.capacity["cpu"]
 
-        memory_capacity = node.status.capacity[
-            "memory"
-        ]
+        memory_capacity = node.status.capacity["memory"]
 
         memory_capacity_mib = (
             int(
@@ -154,9 +145,7 @@ class KubernetesService:
 
         provider_id = node.spec.provider_id
 
-        instance_id = provider_id.split(
-            "/"
-        )[-1]
+        instance_id = provider_id.split("/")[-1]
 
         return {
 
@@ -174,7 +163,9 @@ class KubernetesService:
 
             "instance_id":
                 instance_id
+
         }
+
     def get_all_deployments(
         self,
         namespace="default"
@@ -188,11 +179,87 @@ class KubernetesService:
 
         for deployment in deployments.items:
 
+            deployment_name = deployment.metadata.name
+
+            instance_type = "Unknown"
+
+            try:
+
+                labels = deployment.spec.selector.match_labels
+
+                label_selector = ",".join(
+                    [
+                        f"{key}={value}"
+                        for key, value in labels.items()
+                    ]
+                )
+
+                pods = self.core_v1.list_namespaced_pod(
+                    namespace=namespace,
+                    label_selector=label_selector
+                )
+
+                running_pod = next(
+                    (
+                        pod
+                        for pod in pods.items
+                        if (
+                            pod.status.phase == "Running"
+                            and pod.spec.node_name
+                        )
+                    ),
+                    None
+                )
+
+                if running_pod:
+
+                    node = self.core_v1.read_node(
+                        name=running_pod.spec.node_name
+                    )
+
+                    instance_type = (
+                        node.metadata.labels.get(
+                            "node.kubernetes.io/instance-type"
+                        )
+                        or
+                        node.metadata.labels.get(
+                            "beta.kubernetes.io/instance-type"
+                        )
+                        or
+                        "Unknown"
+                    )
+
+            except Exception as e:
+
+                print(
+                    f"Unable to determine instance type "
+                    f"for {deployment_name}: {e}"
+                )
+
             deployment_list.append(
+
                 {
-                    "name": deployment.metadata.name,
-                    "namespace": deployment.metadata.namespace
+
+                    "name":
+                        deployment_name,
+
+                    "namespace":
+                        deployment.metadata.namespace,
+
+                    "instance_type":
+                        instance_type,
+
+                    "replicas":
+                        deployment.spec.replicas or 0,
+
+                    "ready_replicas":
+                        deployment.status.ready_replicas or 0,
+
+                    "available_replicas":
+                        deployment.status.available_replicas or 0
+
                 }
+
             )
 
         return deployment_list
