@@ -36,9 +36,13 @@ class Recommendation(Base):
 
     recommended_cpu = Column(Float)
 
+    requested_cpu = Column(Float)
+
     actual_memory_mib = Column(Float)
 
     recommended_memory_mib = Column(Float)
+
+    requested_memory_mib = Column(Float)
 
     instance_type = Column(String)
 

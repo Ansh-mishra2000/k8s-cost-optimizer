@@ -7,6 +7,7 @@ from services.cost_analyzer import CostAnalyzer
 from database.repository import RecommendationRepository
 
 
+
 class RecommendationService:
 
     def get_recommendation(
@@ -293,7 +294,7 @@ class RecommendationService:
                 actual_memory
             )
 
-            recommended_memory = Analyzer.recommend_memory(
+            recommended_memory, memory_explanation = Analyzer.recommend_memory(
                 requested_memory,
                 actual_memory
             )
@@ -535,6 +536,10 @@ class RecommendationService:
                     memory_reason
 
             }
+            if memory_explanation:
+
+                response.update(memory_explanation)
+                
             if save_to_db:
                 try:
                     RecommendationRepository.save_recommendation(response)
@@ -548,4 +553,5 @@ class RecommendationService:
 
             return {
                 "error": str(e)
-            }
+                }
+    

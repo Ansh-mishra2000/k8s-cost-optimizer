@@ -1,6 +1,7 @@
 class Analyzer:
 
     MIN_MEMORY_MIB = 64
+    MEMORY_BUFFER_PERCENT = 20
 
     @staticmethod
     def calculate_cpu_waste(
@@ -94,36 +95,29 @@ class Analyzer:
         )
 
     @staticmethod
-    def recommend_memory(
-        requested_memory,
-        actual_memory
-    ):
-        """
-        Recommend Memory based on actual usage.
+    def recommend_memory(requested_memory, actual_memory):
 
-        Adds a 20% safety buffer.
+        calculated_memory = round(actual_memory * 1.2, 2)
 
-        Enforces a configurable
-        minimum memory threshold.
-        """
+        explanation = None
 
-        recommended = round(
+        if calculated_memory < Analyzer.MIN_MEMORY_MIB:
 
-            actual_memory
-            *
-            1.2,
+            recommended_memory = Analyzer.MIN_MEMORY_MIB
 
-            2
-        )
+            explanation = {
+                "memory_buffer_percent": Analyzer.MEMORY_BUFFER_PERCENT,
+                "calculated_memory_mib": calculated_memory,
+                "minimum_memory_policy_mib": Analyzer.MIN_MEMORY_MIB,
+                "recommendation_reason": (
+                    f"Calculated requirement ({calculated_memory} MiB) "
+                    "is below the minimum allocation policy of "
+                    f"{Analyzer.MIN_MEMORY_MIB} MiB."
+                )
+            }
 
-        return round(
+        else:
 
-            max(
+            recommended_memory = calculated_memory
 
-                recommended,
-
-                Analyzer.MIN_MEMORY_MIB
-            ),
-
-            2
-        )
+        return recommended_memory, explanation

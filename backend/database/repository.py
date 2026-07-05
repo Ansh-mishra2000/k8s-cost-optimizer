@@ -20,6 +20,8 @@ class RecommendationRepository:
                     "default"
                 ),
 
+                requested_cpu=data["requested_cpu"],
+
                 actual_cpu=data["actual_cpu"],
 
                 avg_cpu_24h=data["avg_cpu_24h"],
@@ -27,6 +29,8 @@ class RecommendationRepository:
                 peak_cpu_24h=data["peak_cpu_24h"],
 
                 recommended_cpu=data["recommended_cpu"],
+
+                requested_memory_mib=data["requested_memory_mib"],
 
                 actual_memory_mib=data["actual_memory_mib"],
 
