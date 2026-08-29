@@ -86,15 +86,15 @@ def metrics():
 # Dashboard - Deployments
 # -----------------------------
 @app.get("/deployments")
-def deployments():
+def deployments(namespace: str = "default"):
 
-    return kubernetes_service.get_all_deployments()
+    return kubernetes_service.get_all_deployments(namespace=namespace)
 
 
 @app.get("/dashboard/deployments")
-def dashboard_deployments():
+def dashboard_deployments(namespace: str = "default"):
 
-    return kubernetes_service.get_all_deployments()
+    return kubernetes_service.get_all_deployments(namespace=namespace)
 
 
 @app.get("/dashboard/deployment/{deployment_name}")
@@ -265,12 +265,3 @@ def recommendation_by_namespace(
         )
 
     return result
-
-
-# -----------------------------
-# Dashboard Summary
-# -----------------------------
-@app.get("/dashboard/summary")
-def dashboard_summary():
-
-    return dashboard_service.get_dashboard_summary()

@@ -5,6 +5,7 @@ from kubernetes.client.exceptions import ApiException
 from services.aws_service import AWSService
 from services.cost_analyzer import CostAnalyzer
 from database.repository import RecommendationRepository
+from services.ai_service import AIService
 
 
 
@@ -537,8 +538,19 @@ class RecommendationService:
 
             }
             if memory_explanation:
-
                 response.update(memory_explanation)
+
+            # ---------------------------------------------------------
+            # AI-Powered FinOps Explanation & Risk Assessment (Free Tier)
+            # ---------------------------------------------------------
+            try:
+                ai_service = AIService()
+                response["ai_analysis"] = ai_service.generate_explanation(response)
+            except Exception as e:
+                response["ai_analysis"] = {
+                    "status": "Completed",
+                    "note": f"AI explanation generator note: {str(e)}"
+                }
                 
             if save_to_db:
                 try:

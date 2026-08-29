@@ -1,18 +1,28 @@
 apiVersion: v1
 kind: Service
-
 metadata:
   name: k8s-cost-optimizer-service
   namespace: optimizer
+  labels:
+    app: k8s-cost-optimizer
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 
 spec:
+  type: LoadBalancer
 
   selector:
     app: k8s-cost-optimizer
 
   ports:
-
-  - port: 9000
+  # Standard HTTP Port 80 (Now you don't need to type :9000 in your browser!)
+  - name: http-80
+    port: 80
     targetPort: 9000
+    protocol: TCP
 
-  type: ClusterIP
+  # Direct Custom Port 9000
+  - name: http-9000
+    port: 9000
+    targetPort: 9000
+    protocol: TCP

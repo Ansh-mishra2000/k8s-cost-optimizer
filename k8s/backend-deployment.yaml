@@ -13,21 +13,16 @@ spec:
       app: k8s-cost-optimizer
 
   template:
-
     metadata:
       labels:
         app: k8s-cost-optimizer
 
     spec:
-
       serviceAccountName: k8s-cost-optimizer-sa
 
       containers:
-
       - name: backend
-
-        image: 085351677198.dkr.ecr.ap-south-1.amazonaws.com/k8s-cost-optimizer
-
+        image: 464716974838.dkr.ecr.ap-south-1.amazonaws.com/k8s-cost-optimizer-k8s-cost-optimizer-dev:latest
         imagePullPolicy: Always
 
         ports:
@@ -39,3 +34,25 @@ spec:
             secretKeyRef:
               name: postgres-secret
               key: DATABASE_URL
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "400m"
+            memory: "384Mi"
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 9000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 9000
+          initialDelaySeconds: 5
+          periodSeconds: 5

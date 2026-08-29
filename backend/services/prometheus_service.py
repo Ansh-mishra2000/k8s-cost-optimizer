@@ -1,3 +1,4 @@
+import os
 from prometheus_api_client import PrometheusConnect
 
 
@@ -5,8 +6,12 @@ class PrometheusService:
 
     def __init__(self):
 
+        prom_url = os.getenv(
+            "PROMETHEUS_URL",
+            "http://monitoring-kube-prometheus-prometheus.monitoring:9090"
+        )
         self.prom = PrometheusConnect(
-            url="http://monitoring-kube-prometheus-prometheus.monitoring:9090",
+            url=prom_url,
             disable_ssl=True
         )
 
