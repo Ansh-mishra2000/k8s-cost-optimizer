@@ -1,0 +1,169 @@
+name: 🚀 FinOps CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  EKS_CLUSTER_NAME: k8s-cost-optimizer-dev-cluster
+  BACKEND_ECR_REPO: k8s-cost-optimizer-k8s-cost-optimizer-dev
+  COLLECTOR_ECR_REPO: k8s-cost-optimizer-recommendation-collector-dev
+
+jobs:
+  # ============================================================================
+  # 1. Continuous Integration (CI): Linting & Automated Testing
+  # ============================================================================
+  ci-test-and-lint:
+    name: 🧪 CI - Linting & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest flake8
+
+      - name: 🔍 Lint Code with Flake8
+        run: |
+          # Stop build on syntax errors or undefined names
+          flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Warning level for styling
+          flake8 backend --count --exit-zero --max-complexity=15 --max-line-length=120 --statistics
+
+      - name: 🧪 Run Pytest Unit Tests
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
+          pytest backend/tests/ -v
+
+  # ============================================================================
+  # 2. Security Vulnerability Scan: Trivy Container Scanner
+  # ============================================================================
+  security-scan:
+    name: 🛡️ Security - Container Vulnerability Scan
+    needs: ci-test-and-lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐳 Build Test Container Image
+        run: |
+          docker build -t k8s-cost-optimizer:test ./backend
+
+      - name: 🔍 Scan Docker Image for Vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "k8s-cost-optimizer:test"
+          format: "table"
+          exit-code: "0" # Audit mode (logs vulnerabilities without breaking build)
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH"
+
+  # ============================================================================
+  # 3. Continuous Deployment (CD): Build, Push & Deploy to EKS
+  # ============================================================================
+  cd-build-and-deploy:
+    name: 🚀 CD - Build, Push & Deploy to Amazon EKS
+    needs: [ci-test-and-lint, security-scan]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 🐳 Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: 🏗️ Build & Push Backend Docker Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          BACKEND_IMAGE="$ECR_REGISTRY/$BACKEND_ECR_REPO"
+          docker build -t "$BACKEND_IMAGE:$IMAGE_TAG" -t "$BACKEND_IMAGE:latest" ./backend
+          docker push "$BACKEND_IMAGE:$IMAGE_TAG"
+          docker push "$BACKEND_IMAGE:latest"
+
+      - name: 🏗️ Build & Push Collector Docker Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          COLLECTOR_IMAGE="$ECR_REGISTRY/$COLLECTOR_ECR_REPO"
+          docker build -t "$COLLECTOR_IMAGE:$IMAGE_TAG" -t "$COLLECTOR_IMAGE:latest" ./backend/collector
+          docker push "$COLLECTOR_IMAGE:$IMAGE_TAG"
+          docker push "$COLLECTOR_IMAGE:latest"
+
+      - name: ☸️ Install and Configure kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.31.0"
+
+      - name: 🔑 Update Kubeconfig for Amazon EKS
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+      - name: 🚀 Deploy Manifests to Amazon EKS
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Apply Namespaces & RBAC
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/rbac.yaml
+          kubectl apply -f k8s/collector-service-account.yaml
+          
+          # Deploy Prometheus in monitoring namespace
+          kubectl apply -f k8s/prometheus.yaml
+
+          # Deploy Backend Service (LoadBalancer)
+          kubectl apply -f k8s/backend-service.yaml
+
+          # Deploy Backend Deployment with dynamic image
+          cat k8s/backend-deployment.yaml | sed "s|image: .*|image: $ECR_REGISTRY/$BACKEND_ECR_REPO:$IMAGE_TAG|g" | kubectl apply -f -
+
+          # Deploy Collector CronJob with dynamic image
+          cat k8s/cronjob.yaml | sed "s|image: .*|image: $ECR_REGISTRY/$COLLECTOR_ECR_REPO:$IMAGE_TAG|g" | kubectl apply -f -
+
+          # Force clean rollout restart and wait for healthy pods
+          kubectl rollout restart deployment/k8s-cost-optimizer -n optimizer
+          kubectl rollout status deployment/k8s-cost-optimizer -n optimizer --timeout=240s
+
+      - name: 🎉 Verify Deployment & Output URL
+        run: |
+          echo "======================================================================"
+          echo " 🎉 Deployment Successfully Completed via GitHub Actions!"
+          echo "======================================================================"
+          kubectl get pods -A
+          kubectl get svc -n optimizer

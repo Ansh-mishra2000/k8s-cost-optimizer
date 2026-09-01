@@ -84,7 +84,7 @@ def metrics():
     summary="⭐ Core FinOps AI Recommendation Engine (Live Calculation)"
 )
 def get_live_recommendation(
-    namespace: str = Path("default", description="Kubernetes namespace where the workload is running"),
+    namespace: str = Path(..., description="Kubernetes namespace where the workload is running"),
     deployment_name: str = Path(..., description="Name of the Kubernetes Deployment to analyze")
 ):
     """
