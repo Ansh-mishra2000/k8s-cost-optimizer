@@ -565,5 +565,61 @@ class RecommendationService:
 
             return {
                 "error": str(e)
-                }
-    
+            }
+
+    def apply_recommendation(
+        self,
+        deployment_name: str,
+        namespace: str = "default"
+    ):
+        """
+        Calculates the latest right-sizing recommendation and directly patches
+        the live Kubernetes deployment with zero downtime.
+        """
+        # 1. Get the latest recommendation calculation (and save to audit DB)
+        rec = self.get_recommendation(
+            deployment_name=deployment_name,
+            namespace=namespace,
+            save_to_db=True
+        )
+
+        if not rec or "error" in rec:
+            return rec
+
+        recommended_cpu = rec.get("recommended_cpu")
+        recommended_memory_mib = rec.get("recommended_memory_mib")
+        requested_cpu = rec.get("requested_cpu")
+        requested_memory_mib = rec.get("requested_memory_mib")
+        monthly_savings = rec.get("monthly_total_savings_usd", 0.0)
+
+        # 2. Patch live Kubernetes deployment
+        k8s = KubernetesService()
+        patch_result = k8s.patch_deployment_resources(
+            deployment_name=deployment_name,
+            namespace=namespace,
+            cpu_request=recommended_cpu,
+            memory_request_mib=recommended_memory_mib
+        )
+
+        # 3. Format structured response
+        return {
+            "status": "Applied Successfully",
+            "message": f"Deployment '{deployment_name}' in namespace '{namespace}' was successfully right-sized.",
+            "deployment": deployment_name,
+            "namespace": namespace,
+            "remediation_details": {
+                "previous_allocation": {
+                    "cpu_request": f"{requested_cpu} cores",
+                    "memory_request": f"{requested_memory_mib} MiB"
+                },
+                "new_applied_allocation": {
+                    "cpu_request": patch_result["applied_requests"]["cpu"],
+                    "memory_request": patch_result["applied_requests"]["memory"],
+                    "cpu_limit": patch_result["applied_limits"]["cpu"],
+                    "memory_limit": patch_result["applied_limits"]["memory"]
+                },
+                "projected_monthly_savings_usd": monthly_savings,
+                "ai_risk_level": rec.get("ai_analysis", {}).get("risk_level", "Low"),
+                "rollout_strategy": "Zero-Downtime Rolling Update"
+            }
+        }

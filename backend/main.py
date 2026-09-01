@@ -135,6 +135,29 @@ def collect_and_save_recommendation(
     )
 
 
+@app.post(
+    "/recommendation/apply/{namespace}/{deployment_name}",
+    tags=["2. FinOps AI Recommendations"],
+    summary="⚡ Auto-Remediation Endpoint (1-Click Live Kubernetes Patch)"
+)
+def apply_rightsizing_remediation(
+    namespace: str = Path(..., description="Kubernetes namespace"),
+    deployment_name: str = Path(..., description="Deployment name to right-size")
+):
+    """
+    ⚡ AUTO-REMEDIATION / SELF-HEALING ACTION:
+    1. Runs real-time right-sizing calculation against live Prometheus & AWS Pricing.
+    2. Directly PATCHES the live Kubernetes deployment container requests & limits.
+    3. Triggers a Zero-Downtime rolling update across worker nodes.
+    4. Logs the remediation event and projected monthly dollar savings to PostgreSQL.
+    """
+    return recommendation_service.apply_recommendation(
+        deployment_name=deployment_name,
+        namespace=namespace
+    )
+
+
+
 # ==============================================================================
 # 3. 📊 POSTGRESQL DASHBOARD & SUMMARY ANALYTICS
 # ==============================================================================

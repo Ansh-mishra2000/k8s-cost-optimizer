@@ -147,6 +147,7 @@ kubectl apply -f k8s/stress-deployment.yaml
 | :--- | :--- | :--- |
 | `GET /docs` | Interactive Swagger UI API Explorer | FastAPI Core |
 | `GET /recommendation/{namespace}/{name}` | Real-time FinOps analysis with AI risk assessment | FinOps AI Engine |
+| `POST /recommendation/apply/{namespace}/{name}` | ⚡ 1-Click Auto-Remediation (Live Kubernetes Rolling Patch) | Kubernetes Controller |
 | `POST /collect/{namespace}/{name}` | Scheduled batch metric calculation and RDS ingestion | CronJob Collector |
 | `GET /dashboard/summary` | Cluster-wide monthly spend and potential savings | PostgreSQL RDS |
 | `GET /dashboard/top-savings` | Top 5 workloads offering highest cost reduction | PostgreSQL RDS |
