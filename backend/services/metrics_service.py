@@ -27,29 +27,31 @@ class MetricsService:
     @classmethod
     def update_metrics(
         cls,
-        recommendation
+        recommendation: dict
     ):
+        if not recommendation or not isinstance(recommendation, dict):
+            return
 
-        cls.monthly_cpu_cost.set(
-            recommendation[
-                "monthly_cpu_cost_usd"
-            ]
+        cost = recommendation.get("cost_breakdown_usd", {})
+
+        cpu_cost = cost.get(
+            "monthly_cpu_cost",
+            recommendation.get("monthly_cpu_cost_usd", 0.0)
+        )
+        mem_cost = cost.get(
+            "monthly_memory_cost",
+            recommendation.get("monthly_memory_cost_usd", 0.0)
+        )
+        total_cost = cost.get(
+            "current_monthly_total",
+            recommendation.get("monthly_total_cost_usd", 0.0)
+        )
+        savings = cost.get(
+            "monthly_savings",
+            recommendation.get("monthly_total_savings_usd", 0.0)
         )
 
-        cls.monthly_memory_cost.set(
-            recommendation[
-                "monthly_memory_cost_usd"
-            ]
-        )
-
-        cls.monthly_total_cost.set(
-            recommendation[
-                "monthly_total_cost_usd"
-            ]
-        )
-
-        cls.monthly_savings.set(
-            recommendation[
-                "monthly_total_savings_usd"
-            ]
-        )
+        cls.monthly_cpu_cost.set(cpu_cost)
+        cls.monthly_memory_cost.set(mem_cost)
+        cls.monthly_total_cost.set(total_cost)
+        cls.monthly_savings.set(savings)

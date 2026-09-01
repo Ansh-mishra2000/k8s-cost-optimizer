@@ -436,140 +436,23 @@ class RecommendationService:
                     f"the optimizer recommendation, resulting "
                     f"in no significant cost change."
                 )
-            response = {
 
+            # Raw data dictionary used for DB persistence & AI analysis
+            raw_data = {
                 "deployment": deployment_name,
-
-                "requested_cpu": round(
-                    requested_cpu,
-                    2
-                ),
-
-                "actual_cpu": round(
-                    actual_cpu,
-                    2
-                ),
-
-                "avg_cpu_24h":
-                    avg_cpu_24h,
-
-                "peak_cpu_24h":
-                    peak_cpu_24h,
-
-                "cpu_waste_percent":
-                    cpu_waste,
-
-                "recommended_cpu":
-                    recommended_cpu,
-
-                "cpu_recommendation_reason":
-                    cpu_reason,
-
-                # Memory Cost Optimization
-
-                "monthly_memory_cost_usd":
-                    monthly_memory_cost,
-
-                "optimized_monthly_memory_cost_usd":
-                    optimized_monthly_memory_cost,
-
-                "monthly_memory_savings_usd":
-                    monthly_memory_savings,
-
-                "memory_cost_recommendation_reason":
-                    memory_cost_reason,
-
-                # Total Cost Optimization
-
-                "monthly_total_cost_usd":
-                    monthly_total_cost,
-
-                "optimized_monthly_total_cost_usd":
-                    optimized_monthly_total_cost,
-
-                "monthly_total_savings_usd":
-                    monthly_total_savings,
-
-                "total_cost_recommendation_reason":
-                    total_cost_reason,
-
-                # CPU Cost Optimization
-
-                "instance_type":
-                    instance_type,
-
-                "node_hourly_price_usd":
-                    hourly_price,
-
-                "monthly_cpu_cost_usd":
-                    monthly_cpu_cost,
-
-                "optimized_monthly_cpu_cost_usd":
-                    optimized_monthly_cpu_cost,
-
-                "monthly_cpu_savings_usd":
-                    monthly_cpu_savings,
-
-                "cpu_cost_recommendation_reason":
-                    cpu_cost_reason,
-
-                # Memory Recommendations
-
-                "requested_memory_mib":
-                    round(
-                        requested_memory,
-                        2
-                    ),
-
-                "actual_memory_mib":
-                    round(
-                        actual_memory,
-                        2
-                    ),
-
-                "memory_waste_percent":
-                    memory_waste,
-
-                "recommended_memory_mib":
-                    recommended_memory,
-
-                "memory_recommendation_reason":
-                    memory_reason
-
-            }
-            if memory_explanation:
-                response.update(memory_explanation)
-
-            # ---------------------------------------------------------
-            # Clean Grouped Summaries for Easy Reading
-            # ---------------------------------------------------------
-            response["resource_breakdown"] = {
-                "cpu": {
-                    "requested_cores": round(requested_cpu, 2),
-                    "actual_usage_cores": round(actual_cpu, 2),
-                    "avg_24h_cores": avg_cpu_24h,
-                    "peak_24h_cores": peak_cpu_24h,
-                    "recommended_cores": recommended_cpu,
-                    "waste_percent": f"{cpu_waste}%",
-                    "reason": cpu_reason
-                },
-                "memory_mib": {
-                    "requested_mib": round(requested_memory, 2),
-                    "actual_usage_mib": round(actual_memory, 2),
-                    "recommended_mib": recommended_memory,
-                    "waste_percent": f"{memory_waste}%",
-                    "reason": memory_reason
-                }
-            }
-
-            response["cost_breakdown_usd"] = {
+                "namespace": namespace,
+                "requested_cpu": round(requested_cpu, 2),
+                "actual_cpu": round(actual_cpu, 2),
+                "avg_cpu_24h": avg_cpu_24h,
+                "peak_cpu_24h": peak_cpu_24h,
+                "recommended_cpu": recommended_cpu,
+                "requested_memory_mib": round(requested_memory, 2),
+                "actual_memory_mib": round(actual_memory, 2),
+                "recommended_memory_mib": recommended_memory,
                 "instance_type": instance_type,
-                "node_hourly_price": hourly_price,
-                "current_monthly_total": monthly_total_cost,
-                "optimized_monthly_total": optimized_monthly_total_cost,
-                "monthly_savings": monthly_total_savings,
-                "monthly_cpu_cost": monthly_cpu_cost,
-                "monthly_memory_cost": monthly_memory_cost
+                "monthly_total_cost_usd": monthly_total_cost,
+                "optimized_monthly_total_cost_usd": optimized_monthly_total_cost,
+                "monthly_total_savings_usd": monthly_total_savings,
             }
 
             # ---------------------------------------------------------
@@ -577,24 +460,59 @@ class RecommendationService:
             # ---------------------------------------------------------
             try:
                 ai_service = AIService()
-                response["ai_analysis"] = ai_service.generate_explanation(response)
+                ai_analysis = ai_service.generate_explanation(raw_data)
             except Exception as e:
-                response["ai_analysis"] = {
+                ai_analysis = {
                     "status": "Completed",
                     "note": f"AI explanation generator note: {str(e)}"
                 }
-                
+
             if save_to_db:
                 try:
-                    RecommendationRepository.save_recommendation(response)
-
+                    RecommendationRepository.save_recommendation(raw_data)
                 except Exception as e:
                     print("DATABASE SAVE FAILED:", str(e))
 
-            return response
+            # ---------------------------------------------------------
+            # Clean, Streamlined User-Facing Output
+            # ---------------------------------------------------------
+            clean_output = {
+                "deployment": deployment_name,
+                "namespace": namespace,
+                "instance_type": instance_type,
+                "resource_breakdown": {
+                    "cpu": {
+                        "requested_cores": round(requested_cpu, 2),
+                        "actual_usage_cores": round(actual_cpu, 2),
+                        "avg_24h_cores": avg_cpu_24h,
+                        "peak_24h_cores": peak_cpu_24h,
+                        "recommended_cores": recommended_cpu,
+                        "waste_percent": f"{cpu_waste}%",
+                        "reason": cpu_reason
+                    },
+                    "memory_mib": {
+                        "requested_mib": round(requested_memory, 2),
+                        "actual_usage_mib": round(actual_memory, 2),
+                        "recommended_mib": recommended_memory,
+                        "waste_percent": f"{memory_waste}%",
+                        "reason": memory_reason
+                    }
+                },
+                "cost_breakdown_usd": {
+                    "instance_type": instance_type,
+                    "node_hourly_price": hourly_price,
+                    "current_monthly_total": monthly_total_cost,
+                    "optimized_monthly_total": optimized_monthly_total_cost,
+                    "monthly_savings": monthly_total_savings,
+                    "monthly_cpu_cost": monthly_cpu_cost,
+                    "monthly_memory_cost": monthly_memory_cost
+                },
+                "ai_analysis": ai_analysis
+            }
+
+            return clean_output
         
         except ApiException as e:
-
             return {
                 "error": str(e)
             }
@@ -618,11 +536,26 @@ class RecommendationService:
         if not rec or "error" in rec:
             return rec
 
-        recommended_cpu = rec.get("recommended_cpu")
-        recommended_memory_mib = rec.get("recommended_memory_mib")
-        requested_cpu = rec.get("requested_cpu")
-        requested_memory_mib = rec.get("requested_memory_mib")
-        monthly_savings = rec.get("monthly_total_savings_usd", 0.0)
+        recommended_cpu = (
+            rec.get("resource_breakdown", {}).get("cpu", {}).get("recommended_cores")
+            or rec.get("recommended_cpu")
+        )
+        recommended_memory_mib = (
+            rec.get("resource_breakdown", {}).get("memory_mib", {}).get("recommended_mib")
+            or rec.get("recommended_memory_mib")
+        )
+        requested_cpu = (
+            rec.get("resource_breakdown", {}).get("cpu", {}).get("requested_cores")
+            or rec.get("requested_cpu")
+        )
+        requested_memory_mib = (
+            rec.get("resource_breakdown", {}).get("memory_mib", {}).get("requested_mib")
+            or rec.get("requested_memory_mib")
+        )
+        monthly_savings = (
+            rec.get("cost_breakdown_usd", {}).get("monthly_savings")
+            or rec.get("monthly_total_savings_usd", 0.0)
+        )
 
         # 2. Patch live Kubernetes deployment
         k8s = KubernetesService()
