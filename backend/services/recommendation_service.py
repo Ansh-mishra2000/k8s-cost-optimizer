@@ -541,6 +541,38 @@ class RecommendationService:
                 response.update(memory_explanation)
 
             # ---------------------------------------------------------
+            # Clean Grouped Summaries for Easy Reading
+            # ---------------------------------------------------------
+            response["resource_breakdown"] = {
+                "cpu": {
+                    "requested_cores": round(requested_cpu, 2),
+                    "actual_usage_cores": round(actual_cpu, 2),
+                    "avg_24h_cores": avg_cpu_24h,
+                    "peak_24h_cores": peak_cpu_24h,
+                    "recommended_cores": recommended_cpu,
+                    "waste_percent": f"{cpu_waste}%",
+                    "reason": cpu_reason
+                },
+                "memory_mib": {
+                    "requested_mib": round(requested_memory, 2),
+                    "actual_usage_mib": round(actual_memory, 2),
+                    "recommended_mib": recommended_memory,
+                    "waste_percent": f"{memory_waste}%",
+                    "reason": memory_reason
+                }
+            }
+
+            response["cost_breakdown_usd"] = {
+                "instance_type": instance_type,
+                "node_hourly_price": hourly_price,
+                "current_monthly_total": monthly_total_cost,
+                "optimized_monthly_total": optimized_monthly_total_cost,
+                "monthly_savings": monthly_total_savings,
+                "monthly_cpu_cost": monthly_cpu_cost,
+                "monthly_memory_cost": monthly_memory_cost
+            }
+
+            # ---------------------------------------------------------
             # AI-Powered FinOps Explanation & Risk Assessment (Free Tier)
             # ---------------------------------------------------------
             try:

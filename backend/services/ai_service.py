@@ -158,10 +158,19 @@ class AIService:
         # -------------------------------------------------------------
         # 5. Action Item
         # -------------------------------------------------------------
-        action_item = (
-            f"Update 'k8s/{deployment}.yaml' with requests of {rec_cpu_str} CPU and {int(rec_mem)}Mi memory. "
-            f"Run 'kubectl apply -f k8s/{deployment}.yaml' to lock in monthly savings of ${monthly_savings}."
-        )
+        if monthly_savings > 0:
+            action_item = (
+                f"Update 'k8s/{deployment}.yaml' with requests of {rec_cpu_str} CPU and {int(rec_mem)}Mi memory. "
+                f"Run 'kubectl apply -f k8s/{deployment}.yaml' (or call POST /recommendation/apply) to lock in ${monthly_savings}/month in cloud savings."
+            )
+        elif monthly_savings < 0:
+            action_item = (
+                f"Update 'k8s/{deployment}.yaml' with requests of {rec_cpu_str} CPU and {int(rec_mem)}Mi memory. "
+                f"Run 'kubectl apply -f k8s/{deployment}.yaml' (or call POST /recommendation/apply) to ensure cluster stability for an additional ${abs(monthly_savings)}/month."
+            )
+        else:
+            action_item = f"Deployment '{deployment}' is optimally configured. No changes required."
+
 
         return {
             "status": status,
