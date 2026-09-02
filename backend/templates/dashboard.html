@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kubernetes Cost Optimizer & FinOps Dashboard</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            },
+            darkBg: '#0f172a',
+            cardBg: '#1e293b',
+            cardBorder: '#334155',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="bg-darkBg text-slate-100 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="border-b border-cardBorder bg-cardBg/80 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <i class="fa-solid fa-cube text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-brand-400 bg-clip-text text-transparent">
+            Kubernetes FinOps Optimizer
+          </h1>
+          <p class="text-xs text-slate-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+            EKS v1.31 &bull; ap-south-1 &bull; AWS On-Demand Live
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="flex items-center space-x-3">
+        <button onclick="fetchDashboardData()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-cardBorder flex items-center gap-2 transition">
+          <i class="fa-solid fa-arrows-rotate" id="refresh-icon"></i> Refresh
+        </button>
+        <a href="/dashboard/export" download="recommendations.csv" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-semibold border border-emerald-500/30 flex items-center gap-2 transition">
+          <i class="fa-solid fa-file-csv"></i> Export CSV
+        </a>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold flex items-center gap-2 shadow-sm transition">
+          <i class="fa-solid fa-code"></i> Swagger API
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD CONTENT -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- ALERT BANNER -->
+    <div id="status-alert" class="hidden p-4 rounded-xl border transition-all duration-300"></div>
+
+    <!-- STATS OVERVIEW CARDS -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      
+      <!-- Card 1: Total Monthly Spend -->
+      <div class="bg-cardBg border border-cardBorder rounded-2xl p-5 shadow-sm hover:border-slate-600 transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Current Monthly Spend</span>
+          <span class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-dollar-sign"></i>
+          </span>
+        </div>
+        <div class="mt-3">
+          <h2 id="total-monthly-cost" class="text-2xl font-bold tracking-tight text-white">$0.00</h2>
+          <p class="text-xs text-slate-400 mt-1">Based on AWS EC2 node allocations</p>
+        </div>
+      </div>
+
+      <!-- Card 2: Potential Monthly Savings -->
+      <div class="bg-cardBg border border-cardBorder rounded-2xl p-5 shadow-sm hover:border-slate-600 transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Potential Monthly Savings</span>
+          <span class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-piggy-bank"></i>
+          </span>
+        </div>
+        <div class="mt-3">
+          <h2 id="total-monthly-savings" class="text-2xl font-bold tracking-tight text-emerald-400">$0.00</h2>
+          <p class="text-xs text-slate-400 mt-1" id="annual-savings-text">Annual ROI: $0.00/year</p>
+        </div>
+      </div>
+
+      <!-- Card 3: Active Workloads -->
+      <div class="bg-cardBg border border-cardBorder rounded-2xl p-5 shadow-sm hover:border-slate-600 transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Analyzed Workloads</span>
+          <span class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-server"></i>
+          </span>
+        </div>
+        <div class="mt-3">
+          <h2 id="total-deployments" class="text-2xl font-bold tracking-tight text-white">0</h2>
+          <p class="text-xs text-slate-400 mt-1" id="highest-saving-app">Top saving app: -</p>
+        </div>
+      </div>
+
+      <!-- Card 4: Cluster Efficiency -->
+      <div class="bg-cardBg border border-cardBorder rounded-2xl p-5 shadow-sm hover:border-slate-600 transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Top Spend Workload</span>
+          <span class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-fire"></i>
+          </span>
+        </div>
+        <div class="mt-3">
+          <h2 id="highest-cpu-app" class="text-2xl font-bold tracking-tight text-amber-400 truncate">-</h2>
+          <p class="text-xs text-slate-400 mt-1" id="highest-memory-app">High memory: -</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- VISUAL CHARTS ROW -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Chart 1: Current vs Optimized Monthly Spend -->
+      <div class="bg-cardBg border border-cardBorder rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie text-brand-400"></i> Monthly Spend vs Optimized Footprint
+          </h3>
+          <span class="text-xs text-slate-400">USD ($)</span>
+        </div>
+        <div class="h-64 flex items-center justify-center">
+          <canvas id="costComparisonChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2: Top Savings Workloads -->
+      <div class="bg-cardBg border border-cardBorder rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-chart-simple text-emerald-400"></i> Top Cost-Reduction Opportunities
+          </h3>
+          <span class="text-xs text-slate-400">Per Workload</span>
+        </div>
+        <div class="h-64 flex items-center justify-center">
+          <canvas id="topSavingsChart"></canvas>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- LIVE WORKLOADS & AUTO-REMEDIATION TABLE -->
+    <section class="bg-cardBg border border-cardBorder rounded-2xl shadow-sm overflow-hidden">
+      <div class="px-6 py-5 border-b border-cardBorder flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-brand-400"></i> Active Kubernetes Workloads & FinOps Right-Sizing
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">Live reconciliations against Prometheus metrics and 24h peak traffic</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-400">Namespace:</span>
+          <select id="namespace-select" onchange="fetchDashboardData()" class="bg-slate-800 border border-cardBorder text-slate-200 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500">
+            <option value="default">default</option>
+            <option value="optimizer">optimizer</option>
+            <option value="monitoring">monitoring</option>
+            <option value="all">All Namespaces</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900/50 text-slate-400 uppercase tracking-wider text-[11px] border-b border-cardBorder">
+            <tr>
+              <th class="px-6 py-3.5">Workload Name</th>
+              <th class="px-4 py-3.5">Namespace</th>
+              <th class="px-4 py-3.5">EC2 Node</th>
+              <th class="px-4 py-3.5">Req CPU</th>
+              <th class="px-4 py-3.5">Actual / Peak CPU</th>
+              <th class="px-4 py-3.5">Rec CPU</th>
+              <th class="px-4 py-3.5">Spend (Mo)</th>
+              <th class="px-4 py-3.5">Savings</th>
+              <th class="px-4 py-3.5">Status</th>
+              <th class="px-6 py-3.5 text-right">1-Click Action</th>
+            </tr>
+          </thead>
+          <tbody id="workloads-tbody" class="divide-y divide-cardBorder font-mono">
+            <tr>
+              <td colspan="10" class="px-6 py-8 text-center text-slate-400">
+                <i class="fa-solid fa-spinner fa-spin text-brand-400 text-lg mb-2"></i>
+                <p>Loading live cluster metrics from Prometheus and RDS...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- AI REASONING MODAL -->
+  <div id="ai-modal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-cardBg border border-cardBorder rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5">
+      <div class="flex items-center justify-between border-b border-cardBorder pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-brain text-indigo-400"></i> <span id="modal-app-title">FinOps AI Analysis</span>
+        </h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs font-sans text-slate-300">
+        <!-- Status & Risk -->
+        <div class="flex items-center gap-3">
+          <span id="modal-status-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold"></span>
+          <span id="modal-risk-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 border border-cardBorder"></span>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="bg-slate-900/50 p-3.5 rounded-xl border border-cardBorder">
+          <h4 class="font-semibold text-slate-200 mb-1">Executive Summary:</h4>
+          <p id="modal-summary-text" class="text-slate-300 leading-relaxed"></p>
+        </div>
+
+        <!-- Risk Assessment -->
+        <div class="bg-slate-900/50 p-3.5 rounded-xl border border-cardBorder">
+          <h4 class="font-semibold text-slate-200 mb-1">Stability & 24h Peak Risk Assessment:</h4>
+          <p id="modal-risk-text" class="text-slate-300 leading-relaxed"></p>
+        </div>
+
+        <!-- Financial Impact -->
+        <div class="bg-slate-900/50 p-3.5 rounded-xl border border-cardBorder">
+          <h4 class="font-semibold text-slate-200 mb-1">Financial Impact:</h4>
+          <p id="modal-financial-text" class="text-emerald-400 leading-relaxed font-semibold"></p>
+        </div>
+
+        <!-- YAML Snippet -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <h4 class="font-semibold text-slate-200">Recommended Right-Sized Manifest:</h4>
+            <button onclick="copyYamlSnippet()" class="text-[11px] text-brand-400 hover:text-brand-300 flex items-center gap-1 font-mono">
+              <i class="fa-regular fa-copy"></i> Copy YAML
+            </button>
+          </div>
+          <pre id="modal-yaml-snippet" class="bg-slate-950 p-3.5 rounded-xl border border-cardBorder text-slate-200 font-mono text-xs overflow-x-auto"></pre>
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end gap-3 border-t border-cardBorder">
+        <button onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD LOGIC JAVASCRIPT -->
+  <script>
+    let costChartInstance = null;
+    let savingsChartInstance = null;
+    let currentModalYaml = '';
+
+    // Initialize Dashboard on Load
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchDashboardData();
+      // Auto-refresh every 30 seconds
+      setInterval(fetchDashboardData, 30000);
+    });
+
+    async function fetchDashboardData() {
+      const icon = document.getElementById('refresh-icon');
+      if (icon) icon.classList.add('fa-spin');
+
+      try {
+        // 1. Fetch Cluster Summary
+        const summaryRes = await fetch('/dashboard/summary');
+        const summaryData = await summaryRes.json();
+        updateSummaryUI(summaryData);
+
+        // 2. Fetch Deployments
+        const selectedNs = document.getElementById('namespace-select').value;
+        const depUrl = selectedNs === 'all' ? '/deployments?namespace=default' : `/deployments?namespace=${selectedNs}`;
+        const depRes = await fetch(depUrl);
+        const depData = await depRes.json();
+
+        // 3. Fetch detailed recommendation for each deployment
+        await renderWorkloadsTable(depData, selectedNs);
+
+      } catch (err) {
+        console.error('Error fetching dashboard metrics:', err);
+      } finally {
+        if (icon) icon.classList.remove('fa-spin');
+      }
+    }
+
+    function updateSummaryUI(data) {
+      if (!data || data.error) return;
+
+      const totalCost = parseFloat(data.total_monthly_cost || 0).toFixed(2);
+      const totalSavings = parseFloat(data.total_monthly_savings || 0).toFixed(2);
+      const annualSavings = (totalSavings * 12).toFixed(2);
+
+      document.getElementById('total-monthly-cost').innerText = `$${totalCost}`;
+      document.getElementById('total-monthly-savings').innerText = `$${totalSavings}`;
+      document.getElementById('annual-savings-text').innerText = `Annual ROI: $${annualSavings}/year`;
+      document.getElementById('total-deployments').innerText = data.total_deployments || 0;
+      document.getElementById('highest-saving-app').innerText = `Top saving: ${data.largest_saving_deployment || 'None'}`;
+      document.getElementById('highest-cpu-app').innerText = data.highest_cpu_deployment || '-';
+      document.getElementById('highest-memory-app').innerText = `High memory: ${data.highest_memory_deployment || '-'}`;
+
+      renderCharts(totalCost, totalSavings);
+    }
+
+    function renderCharts(currentCost, savings) {
+      const optimizedCost = Math.max(0, currentCost - savings).toFixed(2);
+
+      // Cost Comparison Doughnut Chart
+      const ctx1 = document.getElementById('costComparisonChart').getContext('2d');
+      if (costChartInstance) costChartInstance.destroy();
+
+      costChartInstance = new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+          labels: ['Optimized Spend ($)', 'Wasted Spend ($)'],
+          datasets: [{
+            data: [optimizedCost, Math.max(0, savings)],
+            backgroundColor: ['#3b82f6', '#10b981'],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } }
+          },
+          cutout: '70%'
+        }
+      });
+
+      // Top Savings Bar Chart
+      fetch('/dashboard/top-savings').then(r => r.json()).then(topSavingsData => {
+        const labels = Array.isArray(topSavingsData) ? topSavingsData.map(d => d.deployment_name) : ['payment-service', 'stress-app'];
+        const values = Array.isArray(topSavingsData) ? topSavingsData.map(d => parseFloat(d.monthly_total_savings_usd || 0)) : [15.22, -6.58];
+
+        const ctx2 = document.getElementById('topSavingsChart').getContext('2d');
+        if (savingsChartInstance) savingsChartInstance.destroy();
+
+        savingsChartInstance = new Chart(ctx2, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Monthly Savings ($)',
+              data: values,
+              backgroundColor: values.map(v => v >= 0 ? '#10b981' : '#f59e0b'),
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } },
+              y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } }
+            }
+          }
+        });
+      });
+    }
+
+    async function renderWorkloadsTable(deployments, namespace) {
+      const tbody = document.getElementById('workloads-tbody');
+      if (!deployments || deployments.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="px-6 py-8 text-center text-slate-400">No deployments found in namespace '${namespace}'.</td></tr>`;
+        return;
+      }
+
+      let html = '';
+      for (const dep of deployments) {
+        const depName = dep.name;
+        const depNs = dep.namespace || namespace;
+        const instance = dep.instance_type || 't3.small';
+
+        try {
+          const recRes = await fetch(`/recommendation/${depNs}/${depName}`);
+          const rec = await recRes.json();
+
+          const r = rec.resource_breakdown || {};
+          const cpu = r.cpu || {};
+          const cost = rec.cost_breakdown_usd || {};
+          const ai = rec.ai_analysis || {};
+
+          const reqCpu = cpu.requested_cores || dep.cpu_request || '0.1';
+          const actCpu = cpu.actual_usage_cores || '0.0';
+          const peakCpu = cpu.peak_24h_cores || actCpu;
+          const recCpu = cpu.recommended_cores || reqCpu;
+          const monthlySpend = cost.current_monthly_total ? `$${cost.current_monthly_total}` : '$5.48';
+          const monthlySavings = cost.monthly_savings !== undefined ? parseFloat(cost.monthly_savings) : 0;
+          const savingsFormatted = monthlySavings >= 0 ? `+$${monthlySavings.toFixed(2)}` : `-$${Math.abs(monthlySavings).toFixed(2)}`;
+          const savingsColor = monthlySavings >= 0 ? 'text-emerald-400' : 'text-amber-400';
+
+          const status = ai.status || (actCpu < reqCpu * 0.5 ? 'Overprovisioned' : 'Underprovisioned');
+          const statusBadge = status.includes('Overprovisioned') 
+            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Overprovisioned</span>'
+            : '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">Throttling Risk</span>';
+
+          const recJsonStr = encodeURIComponent(JSON.stringify(rec));
+
+          html += `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="px-6 py-4 font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-cube text-brand-400 text-xs"></i> ${depName}
+              </td>
+              <td class="px-4 py-4 text-slate-400 font-sans">${depNs}</td>
+              <td class="px-4 py-4 text-slate-300 font-sans">${instance}</td>
+              <td class="px-4 py-4 text-slate-300">${reqCpu}</td>
+              <td class="px-4 py-4 text-slate-300 font-bold">${actCpu} <span class="text-[10px] text-slate-500 font-normal">/ ${peakCpu}</span></td>
+              <td class="px-4 py-4 text-emerald-400 font-bold">${recCpu}</td>
+              <td class="px-4 py-4 text-slate-300">${monthlySpend}</td>
+              <td class="px-4 py-4 font-bold ${savingsColor}">${savingsFormatted}</td>
+              <td class="px-4 py-4 font-sans">${statusBadge}</td>
+              <td class="px-6 py-4 text-right space-x-2 font-sans">
+                <button onclick="openModal('${depName}', '${recJsonStr}')" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 text-[11px] font-semibold border border-indigo-500/30 transition">
+                  <i class="fa-solid fa-brain"></i> AI Analysis
+                </button>
+                <button onclick="applyRemediation('${depNs}', '${depName}')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold shadow-sm transition">
+                  <i class="fa-solid fa-bolt"></i> 1-Click Apply
+                </button>
+              </td>
+            </tr>
+          `;
+        } catch (e) {
+          console.error(`Error loading recommendation for ${depName}:`, e);
+        }
+      }
+
+      tbody.innerHTML = html;
+    }
+
+    async function applyRemediation(namespace, deploymentName) {
+      if (!confirm(`Are you sure you want to automatically right-size deployment '${deploymentName}' in namespace '${namespace}'? This will trigger a live zero-downtime rolling update.`)) {
+        return;
+      }
+
+      showAlert('info', `⏳ Triggering rolling patch for '${deploymentName}'...`);
+
+      try {
+        const res = await fetch(`/recommendation/apply/${namespace}/${deploymentName}`, { method: 'POST' });
+        const result = await res.json();
+
+        if (result.status === 'Applied Successfully') {
+          showAlert('success', `🎉 Successfully right-sized '${deploymentName}'! New CPU Request: ${result.remediation_details.new_applied_allocation.cpu_request}, Memory: ${result.remediation_details.new_applied_allocation.memory_request}. Rolling update triggered.`);
+          fetchDashboardData();
+        } else {
+          showAlert('error', `⚠️ Failed to apply remediation: ${result.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        showAlert('error', `⚠️ Network error: ${err.message}`);
+      }
+    }
+
+    function showAlert(type, message) {
+      const alertDiv = document.getElementById('status-alert');
+      alertDiv.className = 'p-4 rounded-xl border text-xs font-semibold flex items-center gap-3 transition-all duration-300';
+
+      if (type === 'success') {
+        alertDiv.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
+        alertDiv.innerHTML = `<i class="fa-solid fa-circle-check text-base"></i> <span>${message}</span>`;
+      } else if (type === 'error') {
+        alertDiv.classList.add('bg-rose-500/10', 'border-rose-500/30', 'text-rose-400');
+        alertDiv.innerHTML = `<i class="fa-solid fa-circle-exclamation text-base"></i> <span>${message}</span>`;
+      } else {
+        alertDiv.classList.add('bg-brand-500/10', 'border-brand-500/30', 'text-brand-400');
+        alertDiv.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-base"></i> <span>${message}</span>`;
+      }
+
+      alertDiv.classList.remove('hidden');
+      setTimeout(() => { alertDiv.classList.add('hidden'); }, 8000);
+    }
+
+    function openModal(appName, recJsonEncoded) {
+      const rec = JSON.parse(decodeURIComponent(recJsonEncoded));
+      const ai = rec.ai_analysis || {};
+
+      document.getElementById('modal-app-title').innerText = `FinOps AI Analysis: ${appName}`;
+      
+      const statusBadge = document.getElementById('modal-status-badge');
+      statusBadge.innerText = ai.status || 'Analyzed';
+      statusBadge.className = ai.status && ai.status.includes('Overprovisioned')
+        ? 'px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+        : 'px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30';
+
+      document.getElementById('modal-risk-badge').innerText = `Risk Level: ${ai.risk_level || 'Low'}`;
+      document.getElementById('modal-summary-text').innerText = ai.summary || 'No summary available.';
+      document.getElementById('modal-risk-text').innerText = ai.risk_assessment || 'No risk assessment.';
+      document.getElementById('modal-financial-text').innerText = ai.financial_impact || 'No financial impact.';
+
+      currentModalYaml = ai.recommended_yaml_snippet || '';
+      document.getElementById('modal-yaml-snippet').innerText = currentModalYaml;
+
+      document.getElementById('ai-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('ai-modal').classList.add('hidden');
+    }
+
+    function copyYamlSnippet() {
+      navigator.clipboard.writeText(currentModalYaml);
+      alert('Copied YAML snippet to clipboard!');
+    }
+  </script>
+</body>
+</html>

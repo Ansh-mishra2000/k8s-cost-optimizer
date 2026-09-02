@@ -12,6 +12,7 @@
 
 import os
 from fastapi import FastAPI, Query, Path, Response
+from fastapi.responses import HTMLResponse
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # Database Initialization
@@ -50,14 +51,26 @@ ai_service = AIService()
 # 1. ⚙️ SYSTEM & HEALTH ENDPOINTS
 # ==============================================================================
 
-@app.get("/", tags=["1. System & Health"])
+@app.get("/", response_class=HTMLResponse, tags=["1. System & Health"])
+@app.get("/ui", response_class=HTMLResponse, tags=["1. System & Health"])
+@app.get("/dashboard", response_class=HTMLResponse, tags=["1. System & Health"])
 def home():
-    """Root health-check endpoint used by Kubernetes liveness and readiness probes."""
-    return {
-        "status": "healthy",
-        "service": "Kubernetes Cost Optimizer & FinOps Engine",
-        "version": "1.0.0"
-    }
+    """Renders the modern, interactive FinOps Graphical Web Dashboard."""
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "dashboard.html")
+    if os.path.exists(template_path):
+        with open(template_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(
+        content="""
+        <html>
+            <body style='background:#0f172a;color:#fff;font-family:sans-serif;text-align:center;padding-top:50px;'>
+                <h1>Kubernetes Cost Optimizer & FinOps Engine</h1>
+                <p>Status: Healthy &bull; <a href='/docs' style='color:#38bdf8;'>Open Swagger Docs</a></p>
+            </body>
+        </html>
+        """
+    )
+
 
 
 @app.get("/metrics", tags=["1. System & Health"])

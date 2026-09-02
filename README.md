@@ -16,7 +16,7 @@
 </p>
 
 ### 🌐 Live World-Wide Demo
-**🚀 [Click Here to Access the Live Application](https://bit.ly/cloud-k8s-cost-optimizer)**  
+**🚀 [Click Here to Access the Live FinOps Visual Dashboard](https://bit.ly/cloud-k8s-cost-optimizer)**  
 *(Interactive Swagger UI: `https://bit.ly/cloud-k8s-cost-optimizer/docs`)*
 
 </div>
@@ -33,7 +33,9 @@ This platform continuously reconciles **requested vs actual resource consumption
 
 ## 🌟 Key Features
 
+* **📊 Interactive FinOps Web Dashboard**: Modern, responsive dark-mode UI with live Chart.js visual metrics, spend vs savings analytics, AI modals, and 1-click auto-remediation buttons.
 * **🧠 Smart FinOps AI Reasoning Engine**: Generates executive summaries, risk evaluations, safety buffer calculations, and copy-paste right-sized Kubernetes YAML snippets with $<2\text{ MB}$ memory footprint and $\$0.00$ cloud overhead.
+* **⚡ 1-Click Live Auto-Remediation**: Directly patches running Kubernetes deployment requests and limits with zero-downtime rolling updates.
 * **⚡ Sub-Millisecond AWS Pricing Cache**: 24-hour in-memory TTL caching with offline fallbacks for Mumbai (`ap-south-1`) instance types to eliminate trans-continental latency and AWS rate-limiting.
 * **📊 Live Prometheus & cAdvisor Metrics**: Real-time extraction of 5-minute rates and 24-hour average/peak CPU and Memory metrics directly from worker node Kubelets.
 * **⏰ Automated CronJob Batch Ingestion**: Periodic background collector that calculates optimization deltas across all cluster namespaces and persists historical records to PostgreSQL.
