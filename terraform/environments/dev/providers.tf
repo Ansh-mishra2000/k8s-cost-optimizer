@@ -29,6 +29,8 @@ terraform {
 provider "aws" {
   region = var.aws_region
 
+  allowed_account_ids = ["415221475366"]
+
   default_tags {
     tags = {
       Project     = var.project_name
