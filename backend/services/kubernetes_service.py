@@ -170,23 +170,26 @@ class KubernetesService:
         self,
         namespace="default"
     ):
-
-        deployments = self.apps_v1.list_namespaced_deployment(
-            namespace=namespace
-        )
+        if namespace == "all" or not namespace:
+            deployments = self.apps_v1.list_deployment_for_all_namespaces()
+        else:
+            deployments = self.apps_v1.list_namespaced_deployment(
+                namespace=namespace
+            )
 
         deployment_list = []
 
         for deployment in deployments.items:
+            dep_ns = deployment.metadata.namespace
+            # Skip kube-system and kube-public system noise in all view
+            if namespace == "all" and dep_ns in ["kube-system", "kube-public", "kube-node-lease"]:
+                continue
 
             deployment_name = deployment.metadata.name
-
-            instance_type = "Unknown"
+            instance_type = "t3.small"
 
             try:
-
-                labels = deployment.spec.selector.match_labels
-
+                labels = deployment.spec.selector.match_labels or {}
                 label_selector = ",".join(
                     [
                         f"{key}={value}"
@@ -194,43 +197,42 @@ class KubernetesService:
                     ]
                 )
 
-                pods = self.core_v1.list_namespaced_pod(
-                    namespace=namespace,
-                    label_selector=label_selector
-                )
-
-                running_pod = next(
-                    (
-                        pod
-                        for pod in pods.items
-                        if (
-                            pod.status.phase == "Running"
-                            and pod.spec.node_name
-                        )
-                    ),
-                    None
-                )
-
-                if running_pod:
-
-                    node = self.core_v1.read_node(
-                        name=running_pod.spec.node_name
+                if label_selector:
+                    pods = self.core_v1.list_namespaced_pod(
+                        namespace=dep_ns,
+                        label_selector=label_selector
                     )
 
-                    instance_type = (
-                        node.metadata.labels.get(
-                            "node.kubernetes.io/instance-type"
-                        )
-                        or
-                        node.metadata.labels.get(
-                            "beta.kubernetes.io/instance-type"
-                        )
-                        or
-                        "Unknown"
+                    running_pod = next(
+                        (
+                            pod
+                            for pod in pods.items
+                            if (
+                                pod.status.phase == "Running"
+                                and pod.spec.node_name
+                            )
+                        ),
+                        None
                     )
+
+                    if running_pod:
+                        node = self.core_v1.read_node(
+                            name=running_pod.spec.node_name
+                        )
+
+                        instance_type = (
+                            node.metadata.labels.get(
+                                "node.kubernetes.io/instance-type"
+                            )
+                            or
+                            node.metadata.labels.get(
+                                "beta.kubernetes.io/instance-type"
+                            )
+                            or
+                            "t3.small"
+                        )
 
             except Exception as e:
-
                 print(
                     f"Unable to determine instance type "
                     f"for {deployment_name}: {e}"

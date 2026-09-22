@@ -22,7 +22,7 @@ spec:
 
       containers:
       - name: backend
-        image: 464716974838.dkr.ecr.ap-south-1.amazonaws.com/k8s-cost-optimizer-k8s-cost-optimizer-dev:latest
+        image: 415221475366.dkr.ecr.ap-south-1.amazonaws.com/k8s-cost-optimizer-k8s-cost-optimizer-dev:latest
         imagePullPolicy: Always
 
         ports:
