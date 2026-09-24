@@ -218,9 +218,8 @@ Open the `EXTERNAL-IP` in your browser: `http://<YOUR_LOAD_BALANCER_URL>/`
 
 To destroy 100% of resources in your AWS account without leaving orphaned ENIs or ECR images:
 
-```bash
-./destroy.sh
-```
+Terraform destroy
+
 *(Or navigate to `terraform/environments/dev` and run `terraform destroy -auto-approve`).*
 
 ---
